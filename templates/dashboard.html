@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}dashboard{% endblock %}
+{% block dashboard_link %}active{% endblock %}
+{% block content %}
+
+<script type="text/javascript">
+var data = [
+{
+	value: {{ status.memory.virtual.available }},
+	color:"#666666",
+	highlight: "#FFC870",
+	label: "Disponible"
+},
+{
+	value: {{ status.memory.virtual.free }},
+	color: "#64A99F",
+	highlight: "#FFC870",
+	label: "Libre"
+},
+{
+	value: {{ status.memory.virtual.used }},
+	color: "#82C3BB",
+	highlight: "#FFC870",
+	label: "Memoria usada"
+},
+];
+
+var hour = new Date().getHours();
+
+function t(hour) {
+	if (hour < 1) {
+		return 12 - (hour * -1);
+	}
+
+	return hour;
+}
+
+var dataTemp = {
+    labels: [ t(hour - 6) + ":00", t(hour - 5) + ":00", t(hour - 4) + ":00", t(hour - 3) + ":00", t(hour - 2) + ":00", t(hour - 1) + ":00", t(hour) + ":00"],
+    datasets: [
+        {
+            label: "Temperatura",
+            fillColor: "rgba(151,187,205,0.2)",
+            strokeColor: "rgba(151,187,205,1)",
+            pointColor: "rgba(151,187,205,1)",
+            pointStrokeColor: "#fff",
+            pointHighlightFill: "#fff",
+            pointHighlightStroke: "rgba(151,187,205,1)",
+            data: [28, 48, 49, 50, 51]
+        }
+    ]
+};
+
+window.onload = function(){
+	var ctx = $("#ramused").get(0).getContext("2d");
+
+	var ramChart = new Chart(ctx).Doughnut(data, {
+		responsive: true,
+	});
+
+	var ctx = $("#tempchar").get(0).getContext("2d");
+
+	var tempChart = new Chart(ctx).Line(dataTemp, {
+		responsive: true,
+	});
+
+	setInterval(function() {
+		//call $.ajax here
+		$.ajax({
+			url: '/api/core/memory',
+			dataType: 'json',
+			success: function(response) {
+				function fileSizeIEC(a,b,c,d,e){
+ 					return (b=Math,c=b.log,d=1024,e=c(a)/c(d)|0,a/b.pow(d,e)).toFixed(1)
+ 							+' '+(e?'KMGTPEZY'[--e]+'B':'Bytes')
+				}
+
+				$("#availabe_label").text(fileSizeIEC(response.virtual.available));
+				$("#free_label").text(fileSizeIEC(response.virtual.free));
+				$("#used_label").text(fileSizeIEC(response.virtual.used));
+
+				ramChart.segments[0].value = response.virtual.available;
+				ramChart.segments[1].value = response.virtual.free;
+				ramChart.segments[2].value = response.virtual.used;
+				ramChart.update();
+			}
+		});
+	}, 15000); //15 seconds
+
+	setInterval(function() {
+		//call $.ajax here
+		$.ajax({
+			url: '/api/core/cpu',
+			dataType: 'json',
+			success: function(response) {
+				$("#temp").text(response.temp);
+			}
+		});
+	}, 60000); //15 seconds
+};
+</script>
+
+<div class="">
+	<div class="page-header">
+		<h1>Dashboard <small>Estadisticas y control del RPi</small></h1>
+	</div>
+	
+	<div class="row">
+		<div class="col-md-3">
+			<div class="panel panel-default">
+				<div class="panel-heading">
+					<h3 class="panel-title">Discos / Almacenamiento</h3>
+				</div>
+				<div class="panel-body">
+					<div class="list-group">
+					{% for disk, opts in status.disks.iteritems() %}
+						  <div class="list-group-item">
+						    <h4 class="list-group-item-heading">{{ disk }} <span class="badge badge-important pull-right">{{ opts.type }}</span></h4>
+						    <ul class="list-group" style="padding-top:5px">
+							  <li class="list-group-item">{{ opts.mount }}</li>
+							  <li class="list-group-item"><strong>Disponible</strong> {{ sizeof_fmt(opts.size.total) }}</li>
+							  <li class="list-group-item"><strong>Usado:</strong> {{ sizeof_fmt(opts.size.used) }}</li>
+							</ul>
+						    <div class="progress">
+  								<div class="progress-bar" role="progressbar" aria-valuenow="{{ '%0.0f' % ((opts.size.used / opts.size.total) * 100) | float }}" aria-valuemin="0" aria-valuemax="100" style="width: {{ '%0.0f' % ((opts.size.used / opts.size.total) * 100) | float }}%;">
+							    	{{ '%0.1f' % ((opts.size.used / opts.size.total) * 100) | float }}%
+							 	</div>
+							</div>
+						  </div>
+					{% endfor %}
+					</div>
+				</div>
+			</div>
+			<div class="panel panel-default">
+				<div class="panel-heading">
+					<h3 class="panel-title">Internet</h3>
+				</div>
+				<div class="panel-body">
+					Panel content
+				</div>
+			</div>
+		</div>
+		<div class="col-md-6">
+			<div class="panel panel-default">
+				<div class="panel-heading">
+					<h3 class="panel-title">Temperatura del procesador <span class="pull-right">Actual: <span id="temp">{{ status.cpu.temp }}</span>'C</span></h3>
+				</div>
+				<div class="panel-body">
+					<div class="canvas-holder" style="width:100%">
+						<canvas id="tempchar" width="400" height="200" />
+					</div>
+
+				</div>
+			</div>
+		</div>
+		<div class="col-md-3">
+			<div class="panel panel-default">
+				<div class="panel-heading">
+					<h3 class="panel-title">Memoria RAM</h3>
+				</div>
+				<div class="panel-body">
+					<div class="canvas-holder" style="width:100%">
+						<canvas id="ramused" width="200" height="200" />
+					</div>
+					<div class="well">
+						<dl>
+							<dt>Disponible:</dt>
+							<dd><span id="availabe_label">{{ sizeof_fmt(status.memory.virtual.available) }}</span></dd>
+							<dt>Usada:</dt>
+							<dd><span id="used_label">{{ sizeof_fmt(status.memory.virtual.used) }}</span></dd>
+							<dt>Libre:</dt>
+							<dd><span id="free_label">{{ sizeof_fmt(status.memory.virtual.free) }}</span></dd>
+						</dl>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</div>
+
+{% endblock %}

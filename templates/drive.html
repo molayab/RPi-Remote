@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block drive_link %}active{% endblock %}
+{% block content %}
+
+<h1 class="page-header">File manager <small>Gestor de archivos</small></h1>
+<ol class="breadcrumb">
+	{% set base = '/drive' %}
+	<li><a href="{{ base }}">Root</a></li>
+	{% if path %}
+		{% for dir in path.split('/') %}
+			{% set base = base + '/' + dir %}
+  			<li><a href="{{ base }}">{{ dir }}</a></li>
+		{% endfor %}
+	{% endif %}
+</ol>
+
+<div class="row">
+	{% for filename, opts in files.iteritems() %}
+  <div class="col-xs-6 col-md-2">
+  	<div class="thumbnail">
+    <a href="{{ url_for('drive', path=opts.path) }}">
+      <img src="/api/icon/{{ opts.kind }}" width="84" height="96" alt="{{ filename }}">
+    </a>
+    <a href="{{ url_for('drive', path=opts.path) }}">
+      {% if filename|length > 15 %}
+      	<div class="caption text-center">{{ filename[:15] }}...</div>
+      {% else %}
+      	<div class="caption text-center">{{ filename }}</div>
+      {% endif %}
+    </a>
+
+        
+
+     </div>
+   </div>
+  {% endfor %}
+</div>
+<!--<ul>
+	{% for filename, opts in files.iteritems() %}
+	<li><a href="{{ url_for('drive', path=opts.path) }}"><img src="/api/icon/{{ opts.kind }}" width="48" height="50" class="img-rounde" />{{ filename }}</a></li>
+	{% endfor %}
+</ul>-->
+
+{% endblock %}
